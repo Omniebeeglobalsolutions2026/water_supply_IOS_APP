@@ -1,0 +1,30 @@
+{
+  "name": "waterflow-backend",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node --use-system-ca src/server.js",
+    "dev": "nodemon --exec \"node --use-system-ca\" src/server.js",
+    "seed:admin": "node --use-system-ca scripts/seedAdmin.js",
+    "test": "node --use-system-ca --test"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.19.1",
+    "pino": "^9.14.0",
+    "pino-http": "^10.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

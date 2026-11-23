@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+*/node_modules/
+*/*/node_modules/
+
+# Environment files
+.env
+.env.*
+!.env.example
+*.local
+
+# Build artifacts & caches
+.expo/
+*/.expo/
+dist/
+web-build/
+build/
+*.apk
+*.txt
+*.log
+
+# Native builds
+android/
+ios/
+.gradle/
+*/.gradle/
+
+# OS & IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Internal backups
+.git_backup/
+*/.git_backup/
+*.git_backup*
