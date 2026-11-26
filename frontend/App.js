@@ -162,7 +162,7 @@ export default function App() {
     return {
       has3ButtonNav,
       systemNavHeight,
-      bottomOffset: has3ButtonNav ? 10 : Platform.OS === 'android' ? 22 : 12,
+      bottomOffset: Platform.OS === 'android' ? Math.max(systemNavHeight + 10, 58) : Platform.OS === 'ios' ? 14 : 12,
     };
   });
 
@@ -176,7 +176,7 @@ export default function App() {
       setNavBarMetrics({
         has3ButtonNav,
         systemNavHeight,
-        bottomOffset: has3ButtonNav ? 10 : Platform.OS === 'android' ? 22 : 12,
+        bottomOffset: Platform.OS === 'android' ? Math.max(systemNavHeight + 10, 58) : Platform.OS === 'ios' ? 14 : 12,
       });
     };
     const sub = Dimensions.addEventListener('change', updateMetrics);
@@ -988,7 +988,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: '3%',
     width: '94%',
-    bottom: Platform.OS === 'android' ? 24 : 12,
+    bottom: Platform.OS === 'android' ? 58 : 12,
   },
   bottomNav: {
     height: 68,

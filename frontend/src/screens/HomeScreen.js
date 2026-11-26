@@ -851,7 +851,7 @@ const styles = StyleSheet.create({
     maxWidth: 520,
     paddingHorizontal: 0,
     paddingTop: 0,
-    paddingBottom: 135,
+    paddingBottom: Platform.OS === 'android' ? 160 : 135,
     alignSelf: 'center',
   },
   bodyContent: {

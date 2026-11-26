@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 135,
+    paddingBottom: Platform.OS === 'android' ? 165 : 135,
     alignSelf: 'center',
   },
   card: {

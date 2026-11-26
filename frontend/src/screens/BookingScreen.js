@@ -2312,7 +2312,7 @@ const styles = StyleSheet.create({
     maxWidth: 520,
     paddingHorizontal: 18,
     paddingTop: 14,
-    paddingBottom: Platform.OS === 'android' ? 44 : 20,
+    paddingBottom: Platform.OS === 'android' ? 76 : 20,
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',

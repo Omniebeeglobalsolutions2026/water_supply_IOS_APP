@@ -2022,7 +2022,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 18,
-    paddingBottom: 145,
+    paddingBottom: Platform.OS === 'android' ? 165 : 145,
   },
   headerRow: {
     flexDirection: 'row',
@@ -3613,7 +3613,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: Platform.OS === 'android' ? 32 : 18,
+    paddingBottom: Platform.OS === 'android' ? 68 : 20,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',

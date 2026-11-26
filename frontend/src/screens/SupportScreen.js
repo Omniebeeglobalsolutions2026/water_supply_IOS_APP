@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     maxWidth: 520,
     paddingHorizontal: 18,
     paddingTop: 12,
-    paddingBottom: 135,
+    paddingBottom: Platform.OS === 'android' ? 165 : 135,
     alignSelf: 'center',
   },
   contactRow: {
