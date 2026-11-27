@@ -64,7 +64,11 @@ export const authApi = {
   },
   async register(details) {
     const payload = await request('/auth/register', { body: details });
-    return payload.token ? saveSession(payload) : payload;
+    if (payload.token) {
+      const user = await saveSession(payload);
+      return { token: payload.token, user, ...(user || {}) };
+    }
+    return payload;
   },
   async currentUser() {
     if (!(await getToken())) return null;

@@ -29,8 +29,8 @@ export default function SignUpScreen({ onSignUp, onGoToLogin }) {
       setErrorMessage('Please enter your email address.');
       return;
     }
-    if (password.length < 6) {
-      setErrorMessage('Password must be at least 6 characters.');
+    if (password.length < 8) {
+      setErrorMessage('Password must be at least 8 characters.');
       return;
     }
     if (password !== confirmPassword) {
@@ -172,7 +172,7 @@ export default function SignUpScreen({ onSignUp, onGoToLogin }) {
                 style={styles.inputWithIcons}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="At least 6 characters"
+                placeholder="At least 8 characters"
                 placeholderTextColor="#94A3B8"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"

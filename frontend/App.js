@@ -519,10 +519,11 @@ export default function App() {
 
   const handleSignUp = async (details) => {
     const registration = await authApi.register({ ...details, role: 'user' });
-    const user = registration.user;
+    const user = registration?.user || registration || {};
+    const role = user?.role || 'user';
     setIsLoggedIn(true);
     setCurrentUser(user);
-    setSelectedLoginRole(user.role);
+    setSelectedLoginRole(role);
 
     const redirectTarget = postLoginRedirect
       || (Platform.OS === 'web' && globalThis.localStorage?.getItem('waterflow.postLoginScreen'));
