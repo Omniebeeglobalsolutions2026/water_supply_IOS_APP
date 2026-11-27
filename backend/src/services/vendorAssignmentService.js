@@ -265,67 +265,74 @@ function createVendorAssignmentService({
     }
     const currentTime = now();
     const responseText = typeof input.response === 'string' ? input.response.trim().slice(0, 300) : '';
+
+    const existingOrder = await getOrder(orderId);
+    if (!existingOrder) {
+      throw new AppError(409, 'This booking request has expired or is no longer active.', 'BOOKING_REQUEST_NOT_ACTIVE');
+    }
+
+    const targetRequest = (existingOrder.vendorRequests || []).find((req) => (
+      (input.requestId && String(req._id) === String(input.requestId))
+      || (String(req.vendor) === String(vendorId) && req.status === 'sent')
+    )) || (existingOrder.vendorRequests || []).slice(-1)[0];
+
+    const targetReqId = targetRequest ? targetRequest._id : (input.requestId || existingOrder.currentVendorRequestId);
+
+    const updateOps = input.status === 'approved'
+      ? {
+        $set: {
+          status: 'approved',
+          assignmentState: 'done',
+          currentVendorRequestId: null,
+          currentVendorRequestExpiresAt: null,
+          assignmentLockToken: null,
+          assignmentLockUntil: null,
+          'vendorRequests.$[request].status': 'accepted',
+          'vendorRequests.$[request].respondedAt': currentTime,
+          'vendorRequests.$[request].response': responseText || 'Vendor accepted the booking.',
+          'vendorRequests.$[other].status': 'cancelled',
+          'vendorRequests.$[other].respondedAt': currentTime,
+          'vendorRequests.$[other].response': 'Another vendor accepted the booking.',
+        },
+      }
+      : {
+        $set: {
+          assignmentState: 'ready',
+          currentVendorRequestId: null,
+          currentVendorRequestExpiresAt: null,
+          assignmentLockToken: null,
+          assignmentLockUntil: null,
+          'vendorRequests.$[request].status': 'rejected',
+          'vendorRequests.$[request].respondedAt': currentTime,
+          'vendorRequests.$[request].response': responseText || 'Vendor rejected the booking.',
+        },
+      };
+
+    const arrayFilters = input.status === 'approved'
+      ? [
+          { 'request._id': targetReqId, 'request.status': 'sent' },
+          { 'other._id': { $ne: targetReqId }, 'other.status': 'sent' },
+        ]
+      : [{ 'request._id': targetReqId, 'request.status': 'sent' }];
+
     const order = await orders.findOneAndUpdate(
       {
         _id: orderId,
         vendor: vendorId,
         status: 'waiting_for_vendor',
-        currentVendorRequestId: input.requestId,
-        currentVendorRequestExpiresAt: { $gt: currentTime },
-        'vendorRequests': {
-          $elemMatch: {
-            _id: input.requestId,
-            vendor: vendorId,
-            status: 'sent',
-          },
-        },
+        currentVendorRequestId: existingOrder.currentVendorRequestId || targetReqId,
       },
-      input.status === 'approved'
-        ? {
-          $set: {
-            status: 'approved',
-            assignmentState: 'done',
-            currentVendorRequestId: null,
-            currentVendorRequestExpiresAt: null,
-            assignmentLockToken: null,
-            assignmentLockUntil: null,
-            'vendorRequests.$[request].status': 'accepted',
-            'vendorRequests.$[request].respondedAt': currentTime,
-            'vendorRequests.$[request].response': responseText || 'Vendor accepted the booking.',
-            'vendorRequests.$[other].status': 'cancelled',
-            'vendorRequests.$[other].respondedAt': currentTime,
-            'vendorRequests.$[other].response': 'Another vendor accepted the booking.',
-          },
-        }
-        : {
-          $set: {
-            assignmentState: 'ready',
-            currentVendorRequestId: null,
-            currentVendorRequestExpiresAt: null,
-            assignmentLockToken: null,
-            assignmentLockUntil: null,
-            'vendorRequests.$[request].status': 'rejected',
-            'vendorRequests.$[request].respondedAt': currentTime,
-            'vendorRequests.$[request].response': responseText || 'Vendor rejected the booking.',
-          },
-        },
-      {
-        new: true,
-        arrayFilters: input.status === 'approved'
-          ? [
-              { 'request._id': input.requestId, 'request.status': 'sent' },
-              { 'other._id': { $ne: input.requestId }, 'other.status': 'sent' },
-            ]
-          : [{ 'request._id': input.requestId, 'request.status': 'sent' }],
-      }
+      updateOps,
+      { new: true, arrayFilters }
     ).lean();
+
     if (!order) {
       throw new AppError(409, 'This booking request has expired or is no longer active.', 'BOOKING_REQUEST_NOT_ACTIVE');
     }
 
     if (input.status === 'approved') {
       await notify('notifyCustomerBookingConfirmed', order.customer, order, order.vendorName);
-      const otherVendors = order.vendorRequests
+      const otherVendors = (order.vendorRequests || [])
         .filter((request) => String(request.vendor) !== String(vendorId) && request.status === 'sent');
       await Promise.all(otherVendors.map((request) => (
         notify('notifyVendorOrderCancelled', request.vendor, order)

@@ -146,15 +146,56 @@ function createVendorService({
     const allowedStatuses = new Set(['all', 'pending', 'waiting_for_vendor', 'approved', 'rejected', 'completed', 'cancelled', 'no_vendor_available']);
     const status = input.status || 'all';
     if (!allowedStatuses.has(status)) throw new AppError(400, 'Choose a valid order status.', 'INVALID_ORDER_STATUS');
-    const filter = { vendor: vendorId };
-    if (status === 'pending') filter.status = { $in: ['pending', 'waiting_for_vendor'] };
-    else if (status !== 'all') filter.status = status;
+
+    let filter;
+    if (status === 'all') {
+      filter = {
+        $or: [
+          { vendor: vendorId },
+          { 'vendorRequests.vendor': vendorId },
+        ],
+      };
+    } else if (status === 'pending' || status === 'waiting_for_vendor') {
+      filter = {
+        vendor: vendorId,
+        status: { $in: ['pending', 'waiting_for_vendor'] },
+      };
+    } else if (status === 'approved' || status === 'completed') {
+      filter = {
+        vendor: vendorId,
+        status,
+      };
+    } else if (status === 'rejected') {
+      filter = {
+        'vendorRequests': {
+          $elemMatch: {
+            vendor: vendorId,
+            status: 'rejected',
+          },
+        },
+      };
+    } else if (status === 'cancelled') {
+      filter = {
+        $or: [
+          { vendor: vendorId, status: 'cancelled' },
+          { 'vendorRequests': { $elemMatch: { vendor: vendorId, status: 'cancelled' } } },
+        ],
+      };
+    } else {
+      filter = {
+        $or: [
+          { vendor: vendorId, status },
+          { 'vendorRequests': { $elemMatch: { vendor: vendorId, status } } },
+        ],
+      };
+    }
+
     const items = await orders.find(filter)
       .populate('customer', 'name phone email')
       .sort({ createdAt: -1 })
       .limit(100)
       .lean();
-    return items.map(serializeOrder);
+    return items.map((item) => serializeOrder(item, vendorId));
   }
 
   async function listCustomerOrders(customerId) {
@@ -180,19 +221,21 @@ function createVendorService({
         _id: orderId,
         vendor: vendorId,
         status: 'waiting_for_vendor',
-        currentVendorRequestId: input.requestId,
       }).lean();
     if (assignmentOrder) {
-      return assignments.respondToRequest(vendorId, orderId, input);
+      const requestId = input.requestId || assignmentOrder.currentVendorRequestId;
+      return assignments.respondToRequest(vendorId, orderId, { ...input, requestId });
     }
 
-    const allowedPrevious = input.status === 'completed' ? 'approved' : 'pending';
+    const allowedPrevious = input.status === 'completed'
+      ? 'approved'
+      : { $in: ['pending', 'waiting_for_vendor'] };
     const order = await orders.findOneAndUpdate(
       { _id: orderId, vendor: vendorId, status: allowedPrevious },
       { $set: { status: input.status } },
       { new: true }
     ).populate('customer', 'name phone email').lean();
-    if (order) return serializeOrder(order);
+    if (order) return serializeOrder(order, vendorId);
     const existing = await orders.exists({ _id: orderId, vendor: vendorId });
     if (!existing) throw new AppError(404, 'Order was not found.', 'ORDER_NOT_FOUND');
     throw new AppError(409, 'This order has already changed and cannot be updated with that action.', 'ORDER_STATUS_CONFLICT');
@@ -334,13 +377,28 @@ function createVendorService({
   };
 }
 
-function serializeOrder(order) {
+function serializeOrder(order, currentVendorId = null) {
   const customer = order.customer && typeof order.customer === 'object'
     ? order.customer
     : null;
   const vendorName = order.vendor && typeof order.vendor === 'object'
     ? order.vendor.businessName || order.vendor.name || 'Vendor'
     : order.vendorName || (order.status === 'waiting_for_vendor' ? 'Finding a vendor' : 'Vendor');
+
+  let effectiveStatus = order.status;
+  if (currentVendorId && Array.isArray(order.vendorRequests)) {
+    const myRequest = order.vendorRequests.find(
+      (r) => String(r.vendor?._id || r.vendor) === String(currentVendorId)
+    );
+    if (myRequest) {
+      if (myRequest.status === 'rejected') {
+        effectiveStatus = 'rejected';
+      } else if (myRequest.status === 'accepted' && order.status !== 'completed') {
+        effectiveStatus = 'approved';
+      }
+    }
+  }
+
   return {
     id: String(order._id),
     customer: customer?.name || 'Customer',
@@ -359,7 +417,7 @@ function serializeOrder(order) {
     deliveryDate: order.deliveryDate,
     time: order.deliveryTime,
     deliveryTime: order.deliveryTime,
-    status: order.status,
+    status: effectiveStatus,
     paymentStatus: order.paymentStatus,
     createdAt: order.createdAt,
     currentVendorRequestId: order.currentVendorRequestId ? String(order.currentVendorRequestId) : null,
